@@ -90,26 +90,61 @@ def webhook():
         if not chat_id:
             return jsonify({"ok": True})
 
-        # =====================================================
-        # ГРУППЫ
-        # =====================================================
+# =====================================================
+# ГРУППЫ
+# =====================================================
 
-        if chat_type in ("group", "supergroup"):
+if chat_type in ("group", "supergroup"):
 
-            # Команда должна быть СТРОГО в начале
-            if not text.startswith("/ask"):
-                return jsonify({"ok": True})
+    # Команда должна быть строго в начале:
+    # /ask текст
+    # /ask@telegpt5436789_bot текст
 
-            # После /ask должен быть пробел или конец строки.
-            # Поэтому /asking не считается командой.
-            if len(text) > 4 and not text[4].isspace():
-                return jsonify({"ok": True})
+    if not text.startswith("/ask"):
+        return jsonify({"ok": True})
 
-            prompt = text[4:].strip()
+    # Получаем первое слово сообщения
+    first_word = text.split(maxsplit=1)[0]
 
-            # /ask без текста игнорируем
-            if not prompt:
-                return jsonify({"ok": True})
+    # Разрешаем:
+    # /ask
+    # /ask@username
+
+    if first_word == "/ask":
+        prompt = text[len("/ask"):].strip()
+
+    elif first_word.startswith("/ask@"):
+        # Получаем username после @
+        bot_username = first_word[5:]
+
+        # Проверяем, что username действительно принадлежит
+        # этому боту
+        me_response = requests.get(
+            f"{TELEGRAM_API}/getMe",
+            timeout=10
+        )
+
+        me_data = me_response.json()
+
+        if not me_data.get("ok"):
+            return jsonify({"ok": True})
+
+        my_username = me_data["result"].get("username", "")
+
+        if bot_username.lower() != my_username.lower():
+            return jsonify({"ok": True})
+
+        prompt = text[len(first_word):].strip()
+
+    else:
+        # Например:
+        # /asking
+        # /ask123
+        return jsonify({"ok": True})
+
+    # /ask без текста — игнорируем
+    if not prompt:
+        return jsonify({"ok": True})
 
         # =====================================================
         # ЛИЧНЫЕ СООБЩЕНИЯ
